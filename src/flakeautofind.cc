@@ -19,7 +19,7 @@ using std::vector;
 using namespace cv;
 
 Mat flatten(Mat);
-vector<int*> circlePoints(int*, int*);
+vector<vector<int>> ellipsePoints(int*, int*);
 
 void printPoint(int*);
 
@@ -58,6 +58,10 @@ int main(int argc, char** argv){
 
 	Mat flat= flatten(blue);
 	cout<<"Flattened!"<<nl;
+
+	Mat test = Mat::zeros( , CV_8UC1);
+	vector<vector<int>> ellipse = ellipsePoints
+
 
 	namedWindow("Debug View", WINDOW_NORMAL);
 	resizeWindow("Debug View", scale*dim[1], scale*dim[0]);
@@ -100,63 +104,85 @@ void printPoint(int* p){
 	cout<<"("<<p[0]<<','<<p[1]<<"), ";
 }
 
-vector<int *> circlePoints(int* r, int* c){
-	vector<int*> points;
-	int x = r, y = 0;
-	
-	int P = 1-r;
+vector<vector<int>> ellipsePoints(int* r, int* c){
+	vector<vector<int>> ellipse;
+	float x = r[0], y = 0;
+	float dx dy d1 d2;
 
-	int point[2];
+	d1 = (r[1]*r[1])-(r[0]*r[0]*r[1])+(0.25*r[0]*r[x]);
+	dx = 2 * r[1] * r[1] * x
+	dy = 2 * r[0] * r[0] * y
 
-	while(x>y){
-		y++;
-			if (P<=0){
-				P=P+2*y+1;
-			}
-			else{
-				x--;
-				P=P+2*y-2*x+1;
-			}
-		if (x<y)
-			break;
+	while( dx < dy ){
+		vector<int> v1, v2, v3, v4;
+		
+		v1.push_back( (int) x+c[0]);
+		v1.push_back( (int) y+c[1]);	
+		
+		v2.push_back( (int) -x+c[0]);
+		v2.push_back( (int) y+c[1]);
 
-		cout<<c[0]<<','<<x<<','<<c[1]<<','<<y<<nl;
-		cout<<"oct1"<<nl;
-		point[0]=c[0]+x;
-		point[1]=c[1]+y;
-		points.push_back(point);
-		cout<<"oct8"<<nl;
-		point[0]=c[0]+x;
-		point[1]=c[1]-y;
-		points.push_back(point);
-		cout<<"oct4"<<nl;
-		point[0]=c[0]-x;
-		point[1]=c[1]+y;
-		points.push_back(point);
-		cout<<"oct5"<<nl;
-		point[0]=c[0]-x;
-		point[1]=c[1]-y;
-		points.push_back(point);
+		v3.push_back( (int) x+c[0]);
+		v3.push_back( (int) -y+c[1]);
 
-		if (x != y){
-			cout<<"oct2"<<nl;
-			point[0]=c[0]+y;
-			point[1]=c[1]+x;
-			points.push_back(point);
-			cout<<"oct7"<<nl;
-			point[0]=c[0]+y;
-			point[1]=c[1]-x;
-			points.push_back(point);
-			cout<<"oct3"<<nl;
-			point[0]=c[0]-y;
-			point[1]=c[1]+x;
-			points.push_back(point);
-			cout<<"oct6"<<nl;
-			point[0]=c[0]-y;
-			point[1]=c[1]-x;
-			points.push_back(point);
+		v4.push_back( (int) -x+c[0]);
+		v4.push_back( (int) -y+c[1]);
+
+		ellipse.push_back(v1);
+		ellipse.push_back(v2);
+		ellipse.push_back(v3);
+		ellipse.push_back(v4);
+
+		if (d1<0){
+			x++;
+			dx+= (2*r[1]*r[1]);
+			d1+= (dx+ (r[1]*r[1]);
+		}
+		else{
+			x++;
+			y--;
+			dx+= (2*r[1]*r[1]);
+			dy-= (2*r[0]*r[0]);
+			d1 = dl + dx - dy +(r[1]*r[1]);
 		}
 	}
-	for(int i = 0; 
-	return points;
+	
+	d2 = ( (r[1]*r[1])*((x+0.5)*(x+0.5)) ) +
+		( (r[0]*r[0]) * ((y-1)*(y-1)) )-
+		( r[0] * r[0] * r[1] * r[1] );
+
+	while( y>=0 ){
+		vector<int> v1, v2, v3, v4;
+		
+		v1.push_back( (int) x+c[0]);
+		v1.push_back( (int) y+c[1]);	
+		
+		v2.push_back( (int) -x+c[0]);
+		v2.push_back( (int) y+c[1]);
+
+		v3.push_back( (int) x+c[0]);
+		v3.push_back( (int) -y+c[1]);
+
+		v4.push_back( (int) -x+c[0]);
+		v4.push_back( (int) -y+c[1]);
+
+		ellipse.push_back(v1);
+		ellipse.push_back(v2);
+		ellipse.push_back(v3);
+		ellipse.push_back(v4);
+
+		if( d2>0 ){
+			y--;
+			dy-= (2*r[0]*r[0]));
+			d2 = d2 + (r[0]*r[0])-dy;
+		}
+		else{
+			y--;
+			x++;
+			dx+= (2*r[1]*r[1]);
+			dy-= (2*r[0]*r[0]);
+			d2 = d2+dx-dy +(r[0]*r[0]);
+	}
+
+	return ellipse;
 }
