@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -8,9 +9,11 @@
 
 #include <sys/stat.h>
 #include <ftw.h>
+#include <math.h>
 
 #define nl "\n"
 
+using std::sort;
 using std::cout;
 using std::endl;
 using std::cin;
@@ -18,10 +21,11 @@ using std::string;
 using std::vector;
 using namespace cv;
 
-Mat flatten(Mat);
-vector<vector<int>> ellipsePoints(int*, int*);
-
-void printPoint(int*);
+void flatten(Mat, Mat*, float*, float);
+Mat bumpContrast(Mat);
+float* findDims(Mat);
+float findMedian(vector<int>);
+vector<vector<int>> ellipsePoints(float*, float*);
 
 int main(int argc, char** argv){
 	cout<<"OpenCV version: "<< CV_VERSION << nl;
@@ -29,7 +33,7 @@ int main(int argc, char** argv){
 	string image_path = argv[1];
 
 	Mat img = imread( image_path, IMREAD_COLOR );
-	int dim[] = {img.cols, img.rows};
+	float dim[] = {img.cols, img.rows};
 	cout<<dim[0] << "x" << dim[1] <<nl;
 
 	if( img.empty()){
@@ -38,80 +42,141 @@ int main(int argc, char** argv){
 	}
 	cout<<"Image Loaded!"<<nl;
 	
-	Mat contrast = Mat::zeros(img.size(), img.type() );
-	float a = 10; //5;
-	int b = 130; //80;
-	for( int y = 0; y< dim[1]; y++){
-		for( int x = 0; x < dim[0]; x++){
-			for( int c = 0; c < img.channels(); c++){
-				contrast.at<Vec3b>(y,x)[c] = saturate_cast<uchar>(a * (img.at<Vec3b>(y,x)[c]-b));
-			}
-		}
-	}
 
-	Mat bgr[3]; 
-	split(contrast, bgr);
+	Mat contrast = bumpContrast(img);
+
+	Mat bgr[3];	
+	split(img, bgr);
 
 	Mat blue = bgr[1];
+	cout<<bgr[0].type()<<nl;
+
+	int a = bgr[2].at<uchar>(dim[0]/2,dim[1]/2);
+	cout<<a<<nl;
+
+	Mat flat[3][2];
+
+	float c[2]= {dim[0]/2, dim[1]/2};
+	float ar = dim[0]/dim[1];
+	for( int i = 0; i<3; i++){
+		flatten(bgr[i], flat[i], c, ar);
+	}
 
 	float scale = 0.6;
-
-	Mat flat= flatten(blue);
-	cout<<"Flattened!"<<nl;
-
-	Mat test = Mat::zeros( , CV_8UC1);
-	vector<vector<int>> ellipse = ellipsePoints
-
 
 	namedWindow("Debug View", WINDOW_NORMAL);
 	resizeWindow("Debug View", scale*dim[1], scale*dim[0]);
 	cout<<"Opened Debug Window!"<<nl;
 
-	/*
 	Mat debug(Size(dim[0]*2, dim[1]*2), CV_8UC1);
-	bgr[0].copyTo(debug(Rect(0,0,dim[0]-1,dim[1]-1)));
-	bgr[1].copyTo(debug(Rect(dim[0],0,2*dim[0],dim[1])));
-	bgr[2].copyTo(debug(Rect(0,dim[1],dim[0],2*dim[1])));
-	flat.copyTo(debug(Rect(dim[0],dim[1],2*dim[0], 2*dim[1])));
+	/*
+	bgr[0].copyTo(debug(Rect(0,0,dim[0],dim[1])));
+	bgr[1].copyTo(debug(Rect(dim[0],0,dim[0],dim[1])));
+	bgr[2].copyTo(debug(Rect(0,dim[1],dim[0],dim[1])));
+	flat[2].copyTo(debug(Rect(dim[0],dim[1],dim[0], dim[1])));
 	*/
-
-	imshow("Debug View", blue);
+	bgr[2].copyTo(debug(Rect(0,0,dim[0],dim[1])));
+	cout<<"Displayed Red!"<<nl;
+	flat[2][0].copyTo(debug(Rect(dim[0],0,dim[0],dim[1])));
+	cout<<"Displayed BG!"<<nl;
+	flat[2][1].copyTo(debug(Rect(0,dim[1],dim[0],dim[1])));
+	cout<<"Displayed Flattened!"<<nl;
+	
+	imshow("Debug View", debug);
 	cout<<"Displayed Debug!"<<endl;
 	int k = waitKey(0);
 	
 	return 0;
 }
 
-Mat flatten(Mat img){
-	int dim[] = {img.cols, img.rows};
-	int centre[] = {dim[0]/2, dim[1]/2};
-	vector<int*> points = circlePoints(100, centre);
+float* findDims(Mat img){
+	return 0;
+}
 
-	Mat flat = Mat::zeros(img.size(), img.type());
+void flatten(Mat img, Mat* flat, float* c, float ar){
+	float dim[2]={img.cols, img.rows};
+	float a[2];
+
+	flat[0] = Mat::zeros(img.rows, img.cols, CV_8UC1);
+	flat[1] = Mat::zeros(img.rows, img.cols, CV_8UC1);
 	
-	int* point;
-	for (int i = 0; i < points.size(); i++){
-		point = points.at(i);
-		cout<<"("<<point[0]<<','<<point[1]<<"), ";
-		flat.at<uchar>(point[0],point[1]) = 255;
+	float s_1 = dim[0]/3;
+	float s_2 = dim[0]/9;
+
+	float r_1[2] = {s_1, ar*s_1};
+	vector<vector<int>> es1 = ellipsePoints(c, r_1);
+	
+	float r_2[2] = {s_2, ar*s_2};
+	vector<vector<int>> es2 = ellipsePoints(c, r_2);
+
+	vector<int> vals1, vals2;
+	for( int i = 0; i<es1.size(); i++){
+		int val = img.at<uchar>(es1[i][1],es1[i][0]);
+		vals1.push_back(val);
 	}
-	cout<<endl;
+	for( int i = 0; i<es2.size(); i++){
+		int val = img.at<uchar>(es2[i][1],es2[i][0]);
+		vals2.push_back(val);
+	}
 
-	return flat;
+	float B_1 = findMedian(vals1);
+	float B_2 = findMedian(vals2);
+
+	a[1]= (B_2-B_1)/(s_2*s_2-s_1*s_1);
+	a[0]= B_1-a[1]*s_1*s_1;
+	
+	cout<<"Coefficients found: a0="<<a[0]<<", a1="<<a[1]<<nl;
+
+	for( int x = 0; x<dim[0]; x++){
+		for( int y = 0; y<dim[1]; y++){
+			float s2 = (x-c[0])*(x-c[0]) + ar * ar * (y-c[1]) * (y-c[1]);
+			float bg = a[0]+a[1]*s2;
+			flat[1].at<uchar>(y,x)=bg;
+			flat[0].at<uchar>(y,x)=img.at<uchar>(y,x) -bg;
+		}
+	}
 }
 
-void printPoint(int* p){
-	cout<<"("<<p[0]<<','<<p[1]<<"), ";
+Mat bumpContrast(Mat img){
+	int dim[2]={img.cols, img.rows};
+	float scale = 0.4;
+	Mat grey;
+        cvtColor(img, grey, COLOR_BGR2GRAY);
+	
+	int avg = mean(grey)[0]+5;	
+
+	Mat contrast = Mat::zeros(img.size(), img.type() );
+	float a = 100; 
+	for( int y = 0; y< dim[1]; y++){
+		for( int x = 0; x < dim[0]; x++){
+			for( int c = 0; c < img.channels(); c++){
+				contrast.at<Vec3b>(y,x)[c] = saturate_cast<uchar>(a * (img.at<Vec3b>(y,x)[c]-avg));
+			}
+		}
+	}
+	return contrast;
 }
 
-vector<vector<int>> ellipsePoints(int* r, int* c){
+float findMedian(vector<int> values){
+	vector<int> sorted = values;
+	sort(sorted.begin(), sorted.end());
+	int length = sorted.size();
+	int middle = length/2;
+	if( length%2==0 ){
+		return ( ((float)sorted[middle-1] +(float)sorted[middle])/2);
+	}
+	return (float)sorted[middle];
+
+}
+
+vector<vector<int>> ellipsePoints(float* c, float* r){
 	vector<vector<int>> ellipse;
-	float x = r[0], y = 0;
-	float dx dy d1 d2;
+	float x = 0, y = r[1];
+	float dx=0, dy=0, d1=0, d2=0;
 
-	d1 = (r[1]*r[1])-(r[0]*r[0]*r[1])+(0.25*r[0]*r[x]);
-	dx = 2 * r[1] * r[1] * x
-	dy = 2 * r[0] * r[0] * y
+	d1 = (r[1]*r[1])-(r[0]*r[0]*r[1])+(0.25*r[0]*r[0]);
+	dx = 2 * r[1] * r[1] * x;
+	dy = 2 * r[0] * r[0] * y;
 
 	while( dx < dy ){
 		vector<int> v1, v2, v3, v4;
@@ -136,14 +201,14 @@ vector<vector<int>> ellipsePoints(int* r, int* c){
 		if (d1<0){
 			x++;
 			dx+= (2*r[1]*r[1]);
-			d1+= (dx+ (r[1]*r[1]);
+			d1+= (dx+ (r[1]*r[1]));
 		}
 		else{
 			x++;
 			y--;
 			dx+= (2*r[1]*r[1]);
 			dy-= (2*r[0]*r[0]);
-			d1 = dl + dx - dy +(r[1]*r[1]);
+			d1 = d1 + dx - dy +(r[1]*r[1]);
 		}
 	}
 	
@@ -173,7 +238,7 @@ vector<vector<int>> ellipsePoints(int* r, int* c){
 
 		if( d2>0 ){
 			y--;
-			dy-= (2*r[0]*r[0]));
+			dy-= (2*r[0]*r[0]);
 			d2 = d2 + (r[0]*r[0])-dy;
 		}
 		else{
@@ -182,6 +247,7 @@ vector<vector<int>> ellipsePoints(int* r, int* c){
 			dx+= (2*r[1]*r[1]);
 			dy-= (2*r[0]*r[0]);
 			d2 = d2+dx-dy +(r[0]*r[0]);
+		}
 	}
 
 	return ellipse;
