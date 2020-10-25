@@ -1,5 +1,5 @@
 # Fdb version 3
-["pdflatex"] 1603580879 "doc.tex" "doc.pdf" "doc" 1603580880
+["pdflatex"] 1603648246 "doc.tex" "doc.pdf" "doc" 1603648247
   "/home/charles/texmf/tex/latex/hw.sty" 1602796844 5676 c883d4d873b3187277c2f62321677b08 ""
   "/usr/share/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1591545468 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1591545468 3524 cb3e574dea2d1052e39280babc910dc8 ""
@@ -47,6 +47,7 @@
   "/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb" 1591545468 35752 024fb6c41858982481f6968b5fc26508 ""
   "/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb" 1591545468 32762 224316ccc9ad3ca0423a14971cfa7fc1 ""
   "/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb" 1591545468 32569 5e5ddc8df908dea60932f3c484a54c0d ""
+  "/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb" 1591545468 32716 08e384dc442464e7285e891af9f45947 ""
   "/usr/share/texmf-dist/fonts/type1/public/cm-super/sfbx1000.pfb" 1591545468 145408 43d44302ca7d82d487f511f83e309505 ""
   "/usr/share/texmf-dist/fonts/type1/public/cm-super/sfbx1440.pfb" 1591545468 135942 859a90cad7494a1e79c94baf546d7de5 ""
   "/usr/share/texmf-dist/fonts/type1/public/cm-super/sfrm1000.pfb" 1591545468 138258 6525c253f16cededa14c7fd0da7f67b2 ""
@@ -216,13 +217,13 @@
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1591545468 33301 a3134070eacafb10b1f371612ce2650d ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1599598346 4727905 1b81189106e2406a827797a37162c1c0 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1599598309 2514047 f3922a5c9f3676ee0ba46d2a3e2ff7b0 ""
-  "doc.aux" 1603580879 769 43025291819050b65e80d69fc7d517a8 "pdflatex"
-  "doc.out" 1603580879 45 b6f7627b808d29b22c930a02b4e27ad3 "pdflatex"
-  "doc.tex" 1603580878 1146 26e36a876a3983be980401b17dce238a ""
-  "doc.toc" 1603580879 66 756f7ca8ae05c7432997c9045c2d5eae "pdflatex"
+  "doc.aux" 1603648247 883 afdeaaaeb6f38e4273760264443c3c63 "pdflatex"
+  "doc.out" 1603648247 97 078a4ab32abcfaab8ccff5ac67913736 "pdflatex"
+  "doc.tex" 1603648245 1617 a0d61e09d14ea7a80867d0b330283ebd ""
+  "doc.toc" 1603648247 139 5c0e5b4a0c16341f300a99c4feae7da1 "pdflatex"
   (generated)
   "doc.pdf"
-  "doc.out"
-  "doc.aux"
-  "doc.toc"
   "doc.log"
+  "doc.out"
+  "doc.toc"
+  "doc.aux"
