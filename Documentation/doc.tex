@@ -11,7 +11,7 @@
 \tableofcontents
 
 \section{General Algorithm}
-The image is flattened using an infered background level. After increasing contrast, edge detection is used to 
+The image is flattened using an infered background level. After flattening, morphological transformations are applied. Opening reduces the amount of small, white pixels, eroding reduces the size of bigger clumps of white pixels, and closing makes the flakes more solid and bold. 
 
 \section{Flattening}
 The symmetry of the background is assumed to that of an ellipse. Similar to a circle, where the radius is defined
@@ -35,12 +35,5 @@ Once the coefficients are determined, the equation can be determined recursively
 \[f_{n} =s^2f_{n-1} +a_{N-n}\]
 with
 \[B_N(s)=f_N\]
-For simplicity, we consider only the lowest two orders, 
-\[B_2(s) = a_0+a_1s^2\]
-Taking two samples,
-\[B_2(s_1) = a_0+a_1s_1^2\]
-\[B_2(s_2) = a_0+a_1s_2^2\]
-\[B_2(s_2)-B_2(s_1)=a_1(s_2^2-s_1^2)\]
-\[a_1=\frac{B_2(s_2)-B_2(s_1)}{s_2^2-s_1^2}\]
-\[a_0=B_2(s_1)-a_1s_1^2=B_2(s_2)-a_1s_2^2\]
+Unfortunately, only considering the lowest order (\(s^2\)) leads to inaccuracy around the borders of the image. 
 \end{document}

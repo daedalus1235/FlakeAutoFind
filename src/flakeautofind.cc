@@ -45,6 +45,9 @@ int main(int argc, char** argv){
 
 	Mat contrast = bumpContrast(img);
 
+	Mat blur;
+	//GaussianBlur(img, blur, Size(5,5), 1);
+
 	Mat bgr[3];	
 	split(img, bgr);
 
@@ -67,6 +70,18 @@ int main(int argc, char** argv){
 	namedWindow("Debug View", WINDOW_NORMAL);
 	resizeWindow("Debug View", scale*dim[1], scale*dim[0]);
 	cout<<"Opened Debug Window!"<<nl;
+	
+	Mat open;
+	Mat const open_kernel = getStructuringElement(MORPH_RECT, Size(7,7));
+	morphologyEx(flat[2][0], open, MORPH_OPEN, open_kernel);
+	
+	Mat erode;
+	Mat const erode_kernel = getStructuringElement(MORPH_RECT, Size(5,5));
+	morphologyEx(open, erode, MORPH_ERODE, erode_kernel);
+
+	Mat close;
+	Mat const close_kernel = getStructuringElement(MORPH_RECT, Size(20,20));
+	morphologyEx(erode,close, MORPH_CLOSE, close_kernel);
 
 	Mat debug(Size(dim[0]*2, dim[1]*2), CV_8UC1);
 	/*
@@ -81,6 +96,8 @@ int main(int argc, char** argv){
 	cout<<"Displayed BG!"<<nl;
 	flat[2][1].copyTo(debug(Rect(0,dim[1],dim[0],dim[1])));
 	cout<<"Displayed Flattened!"<<nl;
+	close.copyTo(debug(Rect(dim[0],dim[1],dim[0],dim[1])));
+	cout<<"Displayed Morphology Transformed!"<<nl;
 	
 	imshow("Debug View", debug);
 	cout<<"Displayed Debug!"<<endl;
