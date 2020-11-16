@@ -89,14 +89,15 @@ and so forth until all of the coefficients are determined.
 
 \subsection{Algorithm}
 The initial Vandermonde-coefficent matrix can be calculated as
-\[S'_{ij}=j^{i-1}\]
+\[S'_{ij}=(i+1)^{j}\]
 The rows of the background-coefficient matrix can be calculated as follows:
-\[C_{1j}=(-1)^j\]
-\[C_{i+1,j}=-C_{ij}*\frac{j-i}{i+1}\]
+\[C_{i1}=(-1)^i\]
+\[C_{i,j+1}=-C_{ij}*\frac{i-j}{j+1}\]
 This comes from the fact that
-\[C_{ij}=(-1)^{i+j}\ncr{j}{i}\]
+\[C_{ij}=(-1)^{i+j}\ncr{i}{j}\]
 and
 \[\ncr{n}{k+1}=\ncr{n}{k}*\frac{n-k}{k+1}\]
+where \(i,j\) are indexed starting from \(0\).
 
 The value of \(s^2\) is taken such that \(\sqrt{ns^2}\) is the largest ellipse that still fits on the image. 
 

@@ -21,7 +21,7 @@ using std::string;
 using std::vector;
 using namespace cv;
 
-void flatten(Mat, Mat*, float*, float);
+void flatten(Mat, Mat*, float*, float, int);
 Mat bumpContrast(Mat);
 float* findDims(Mat);
 float findMedian(vector<int>);
@@ -52,17 +52,15 @@ int main(int argc, char** argv){
 	split(img, bgr);
 
 	Mat blue = bgr[1];
-	cout<<bgr[0].type()<<nl;
 
 	int a = bgr[2].at<uchar>(dim[0]/2,dim[1]/2);
-	cout<<a<<nl;
 
 	Mat flat[3][2];
 
 	float c[2]= {dim[0]/2, dim[1]/2};
 	float ar = dim[0]/dim[1];
 	for( int i = 0; i<3; i++){
-		flatten(bgr[i], flat[i], c, ar);
+		flatten(bgr[i], flat[i], c, ar, 4);
 	}
 
 	float scale = 0.6;
@@ -110,13 +108,93 @@ float* findDims(Mat img){
 	return 0;
 }
 
-void flatten(Mat img, Mat* flat, float* c, float ar){
+void flatten(Mat img, Mat* flat, float* c, float ar, int n){
+	cout<<"Samples to be taken: "<<n<<nl;
 	float dim[2]={img.cols, img.rows};
-	float a[2];
+	float a[n]; //coefficient array
+	float samp2[n]; //sample locations squared
+	float b[n]; //sample values
 
-	flat[0] = Mat::zeros(img.rows, img.cols, CV_8UC1);
-	flat[1] = Mat::zeros(img.rows, img.cols, CV_8UC1);
+	flat[0] = Mat::zeros(img.rows, img.cols, CV_8UC1);//
+	flat[1] = Mat::zeros(img.rows, img.cols, CV_8UC1);//
 	
+	samp2[0]=pow(dim[0],2)/n;
+	for( int i = 1; i<n; i++){
+		samp2[i] = samp2[i-1]+samp2[0];
+	}//populate s^2 values
+	
+	for( int i = 0; i < n; i++ ){
+		cout<<"entered loop: "<<i<<nl;
+		float r[2] = {sqrt(samp2[i]), ar*sqrt(samp2[i])};
+	       	vector<vector<int>> ellpts = ellipsePoints(c, r);
+		cout<<"  generated "<<ellpts.size()<<" points"<<nl;
+
+		vector<int> ellvals;
+		for( int j = 0; j<ellpts.size(); j++){
+			int val = img.at<uchar>(ellpts[j][1],ellpts[j][0]);
+			cout<<"  measured point "<<j<<nl;
+			ellvals.push_back(val);
+			cout<<"  recorded measurement "<<j<<nl;
+		}
+		cout<<"took measurements"<<nl;
+		b[i]=findMedian(ellvals);
+	}//determine b at each s^2
+	cout<<"Samples Taken!"<<nl;
+
+	//regression
+	int Sarr[n][n];
+	for( int i = 0; i<n; i++){
+		for( int j=0; j<n; i++){
+			if( i == 0)
+				Sarr[i][j]=1;
+			else
+				Sarr[i][j]=j*Sarr[i-1][j];
+		}
+	}
+	Mat S(n,n, CV_32F, Sarr);
+	cout<<"S="<<nl<<S<<nl;
+	
+	int Carr[n][n];
+	for( int i = 0; i<n; i++ ){
+		for( int j=0; j<n; j++){
+			if(j>i){
+				Carr[i][j]=0;
+			}
+			else if (i == 0){
+				if( j==0 )
+					Carr[i][j]=1;
+				else
+					Carr[i][j]=-Carr[i-1][j];
+			}
+			else{
+				Carr[i][j]=Carr[i][j-1]*(i-j)/(j+1);
+			}
+		}
+	}
+	Mat C(n,n, CV_32F, Carr);
+	cout<<"C="<<nl<<C<<nl;
+		
+	Mat T=C*S;
+	cout<<"T="<<nl<<T<<nl;
+	
+	/*
+	for( int x = 0; x<dim[0]; x++){
+		for( int y = 0; y<dim[1]; y++){
+			float s2 = (x-c[0])*(x-c[0]) + ar*ar*(y-c[1])*(y-c[1]);
+			float bg = a[n];
+			for( i = n-1; i>=0; i--){
+				bg*=s2;
+				bg+=a[i];
+			}
+			flat[1].at<uchar>(y,x)=bg;
+			flat[0].at<uchar>(y,x)=img.at<uchar>(y,x) - bg;
+		}
+	}
+	*/
+	flat[1]=Mat::zeros(img.rows, img.cols, CV_8UC1);
+	flat[0]=img;
+	/*
+	float a[2];
 	float s_1 = dim[0]/3;
 	float s_2 = dim[0]/9;
 
@@ -138,7 +216,7 @@ void flatten(Mat img, Mat* flat, float* c, float ar){
 
 	float B_1 = findMedian(vals1);
 	float B_2 = findMedian(vals2);
-
+	
 	a[1]= (B_2-B_1)/(s_2*s_2-s_1*s_1);
 	a[0]= B_1-a[1]*s_1*s_1;
 	
@@ -152,6 +230,7 @@ void flatten(Mat img, Mat* flat, float* c, float ar){
 			flat[0].at<uchar>(y,x)=img.at<uchar>(y,x) -bg;
 		}
 	}
+	*/
 }
 
 Mat bumpContrast(Mat img){
