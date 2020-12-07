@@ -21,7 +21,8 @@ using std::string;
 using std::vector;
 using namespace cv;
 
-void flatten(Mat, Mat*, float*, float, int);
+void flatten(Mat, Mat*, float*, float*, float, int);
+float transmittance(Mat, float*, float*, float, float*, int);
 float findMedian(vector<int>);
 vector<vector<int>> ellipsePoints(float*, float*);
 
@@ -39,21 +40,27 @@ int main(int argc, char** argv){
 		return -1;
 	}
 	cout<<"Image Loaded!"<<endl;
+
+	int N = 3;
+	if (argc >1){
+		N = std::stoi(argv[2]);
+	}
 	
 	Mat bgr[3];	
 	split(img, bgr);
 
 	Mat blue = bgr[1];
 
-	int a = bgr[2].at<uchar>(dim[0]/2,dim[1]/2);
-
 	Mat flat[3][2];
 
 	float c[2]= {dim[0]/2, dim[1]/2};
 	float ar = dim[0]/dim[1];
+	float a[3][N];
 	for( int i = 0; i<3; i++){
-		flatten(bgr[i], flat[i], c, ar, 3);
+		flatten(bgr[i], flat[i], a[i], c, ar, N);
 	}
+	
+	float t = transmittance(bgr[2], c, c, ar, a[2], N);
 
 	float scale = 0.6;
 
@@ -91,10 +98,9 @@ int main(int argc, char** argv){
 	return 0;
 }
 
-void flatten(Mat img, Mat* flat, float* c, float ar, int n){
+void flatten(Mat img, Mat* flat, float* a, float* c, float ar, int n){
 	cout<<"Samples to be taken: "<<n<<endl;
 	float dim[2]={img.cols, img.rows};
-	float a[n]; //coefficient array
 	float samp2[n]; //sample locations squared
 	float b[1][n]; //sample values
 
@@ -177,7 +183,7 @@ void flatten(Mat img, Mat* flat, float* c, float ar, int n){
 		}
 		a[i]/=(T.at<float>(i,i)*pow(samp2[i],i));
 	}
-	cout<<"Coefficients: [";
+	cout<<"Coefficients: [ ";
 	for( int i = 0; i<n; i++){
 		cout<<a[i]<<" ";
 	}
@@ -197,6 +203,20 @@ void flatten(Mat img, Mat* flat, float* c, float ar, int n){
 	}
 }
 
+float transmittance(Mat img, float* r, float* c, float ar, float* a, int n){
+	float s2 = (r[0]-c[0])*(r[0]-c[0]) + ar*ar*(r[1]-c[1])*(r[1]-c[1]);
+	float base = 0;
+
+	for( int i = n; i>0; i--){
+		base*=s2;
+		base+=a[i-1];
+	}
+	float value = img.at<uchar>(r[1],r[0]);
+
+	cout<<"Background Value: "<<base<<endl;
+	cout<<"Transmitted: "<<value<<endl;
+	return value/base;
+}
 
 float findMedian(vector<int> values){
 	vector<int> sorted = values;
