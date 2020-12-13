@@ -22,6 +22,8 @@ using std::vector;
 using namespace cv;
 
 void flatten(Mat, Mat*, float*, float*, float, int);
+void linearContrast(Mat, Mat, float, float);
+void gammaContrast(Mat, Mat, float);
 float transmittance(Mat, float*, float*, float, float*, int);
 float findMedian(vector<int>);
 vector<vector<int>> ellipsePoints(float*, float*);
@@ -42,12 +44,17 @@ int main(int argc, char** argv){
 	cout<<"Image Loaded!"<<endl;
 
 	int N = 3;
-	if (argc >1){
+	if (argc > 1){
 		N = std::stoi(argv[2]);
 	}
+
+	Mat imgblur;
+	GaussianBlur(img, imgblur, Size(3,3), 0, 0, BORDER_DEFAULT);
+
 	
 	Mat bgr[3];	
-	split(img, bgr);
+	//split(img, bgr);
+	split(imgblur, bgr);
 
 	Mat blue = bgr[1];
 
@@ -80,22 +87,73 @@ int main(int argc, char** argv){
 	Mat const close_kernel = getStructuringElement(MORPH_RECT, Size(20,20));
 	morphologyEx(erode,close, MORPH_CLOSE, close_kernel);
 
+	float alpha = 10;
+	float beta  = 15;
+	float gamma = 0.5;
+	Mat contrast = Mat::zeros(close.size(), close.type());
+	for (int y = 0; y < close.rows; y++) {
+		for (int x = 0; x < close.cols; x++) {
+			contrast.at<uchar>(y,x) = alpha*(flat[2][0].at<uchar>(y,x) - beta);
+		}
+	}
+	//linearContrast(flat[2][0], blur, 10, 15);
+	Mat blur;
+	GaussianBlur(contrast, blur, Size(3,3), 0, 0, BORDER_DEFAULT);
+	
+	/*Sobel Derivatives
+	Mat delx, dely;
+	Sobel(blur, delx, CV_16S, 1, 0, 1, 1, 0, BORDER_DEFAULT);
+	Sobel(blur, dely, CV_16S, 0, 1, 1, 1, 0, BORDER_DEFAULT);
+	Mat absdelx, absdely;
+	convertScaleAbs(delx, absdelx);
+	convertScaleAbs(dely, absdely);
+	Mat grad;
+	addWeighted(absdelx, 0.5, absdely, 0.5, 0, grad);
+	*/
+
+	/*Laplacian*/
+	Mat lap, abslap;
+	Laplacian( blur, lap, CV_16S, 1,1,0, BORDER_DEFAULT);
+	convertScaleAbs(lap, abslap);
+
+
 	Mat debug(Size(dim[0]*2, dim[1]*2), CV_8UC1);
 
 	bgr[2].copyTo(debug(Rect(0,0,dim[0],dim[1])));
 	cout<<"Displayed Red!"<<nl;
-	flat[2][0].copyTo(debug(Rect(dim[0],0,dim[0],dim[1])));
+	close.copyTo(debug(Rect(dim[0],0,dim[0],dim[1])));
 	cout<<"Displayed BG!"<<nl;
-	flat[2][1].copyTo(debug(Rect(0,dim[1],dim[0],dim[1])));
+	contrast.copyTo(debug(Rect(0,dim[1],dim[0],dim[1])));
 	cout<<"Displayed Flattened!"<<nl;
-	close.copyTo(debug(Rect(dim[0],dim[1],dim[0],dim[1])));
+	abslap.copyTo(debug(Rect(dim[0],dim[1],dim[0],dim[1])));
 	cout<<"Displayed Morphology Transformed!"<<endl;
 	
 	imshow("Debug View", debug);
 	cout<<"Displayed Debug!"<<endl;
 	int k = waitKey(0);
+
+	imwrite("output.png", debug);
 	
 	return 0;
+}
+
+void linearContrast(Mat img, Mat contrast, float a, float b){
+	contrast=Mat::zeros( img.size(), img.type() );
+	for (int y = 0; y < img.rows; y++) {
+		for (int x = 0; x < img.cols; x++) {
+			contrast.at<uchar>(y,x) = a*(img.at<uchar>(y,x) - b);
+		}
+	}
+}
+
+void gammaContrast(Mat img, Mat gamma, float g){
+	Mat lookUpTable(1, 256, CV_8U);
+	uchar* p = lookUpTable.ptr();
+	for (int i = 0; i < 256; ++i) {
+		p[i] = saturate_cast<uchar>(pow(i/255, g)*255);
+	}
+	gamma = img.clone();
+	LUT(img, lookUpTable, gamma);
 }
 
 void flatten(Mat img, Mat* flat, float* a, float* c, float ar, int n){
