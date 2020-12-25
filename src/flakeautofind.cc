@@ -26,6 +26,7 @@ void linearContrast(Mat, Mat, float, float);
 void gammaContrast(Mat, Mat, float);
 float transmittance(Mat, float*, float*, float, float*, int);
 float findMedian(vector<int>);
+void findCenter(Mat, float*);
 vector<vector<int>> ellipsePoints(float*, float*);
 
 int main(int argc, char** argv){
@@ -60,20 +61,15 @@ int main(int argc, char** argv){
 
 	Mat flat[3][2];
 
-	float c[2]= {dim[0]/2, dim[1]/2};
 	float ar = dim[0]/dim[1];
 	float a[3][N];
 	for( int i = 0; i<3; i++){
+		float c[2];
+		findCenter(bgr[i], c);
 		flatten(bgr[i], flat[i], a[i], c, ar, N);
+
+		return 1;
 	}
-	
-	float t = transmittance(bgr[2], c, c, ar, a[2], N);
-
-	float scale = 0.6;
-
-	namedWindow("Debug View", WINDOW_NORMAL);
-	resizeWindow("Debug View", scale*dim[1], scale*dim[0]);
-	cout<<"Opened Debug Window!"<<endl;
 	
 	Mat open;
 	Mat const open_kernel = getStructuringElement(MORPH_RECT, Size(7,7));
@@ -117,6 +113,12 @@ int main(int argc, char** argv){
 	convertScaleAbs(lap, abslap);
 
 
+	float scale = 0.6;
+
+	namedWindow("Debug View", WINDOW_NORMAL);
+	resizeWindow("Debug View", scale*dim[1], scale*dim[0]);
+	cout<<"Opened Debug Window!"<<endl;
+	
 	Mat debug(Size(dim[0]*2, dim[1]*2), CV_8UC1);
 
 	bgr[2].copyTo(debug(Rect(0,0,dim[0],dim[1])));
@@ -136,6 +138,57 @@ int main(int argc, char** argv){
 	
 	return 0;
 }
+
+
+void findCenter(Mat img, float* c){
+	Mat center=Mat::zeros( img.size(), img.type() );
+	Mat shift=Mat::zeros( img.size(), img.type() );
+	double avg = mean(img)[0];
+	
+	for (int y = 0; y < img.rows; y++) {
+		for (int x = 0; x < img.cols; x++) {
+			shift.at<uchar>(y,x) = img.at<uchar>(y,x)-avg-4;
+		}
+	}
+	
+	Mat thresh;
+	threshold( shift, thresh, 200, 255, 0);
+	
+	Mat dilate;
+	Mat const dilate_kernel = getStructuringElement(MORPH_RECT, Size(8,8));
+	morphologyEx(thresh, dilate, MORPH_DILATE, dilate_kernel);
+
+	Mat close;
+	Mat const close_kernel = getStructuringElement(MORPH_RECT, Size(10,10));
+	morphologyEx(thresh, close, MORPH_CLOSE, close_kernel);
+
+	Mat erode;
+	Mat const erode_kernel = getStructuringElement(MORPH_RECT, Size(10,10));
+	morphologyEx(close, erode, MORPH_ERODE, erode_kernel);
+
+	Mat open;
+	Mat const open_kernel = getStructuringElement(MORPH_RECT, Size(7,7));
+	morphologyEx(erode, open, MORPH_OPEN, open_kernel);
+	
+	
+	Mat lap, abslap;
+	Laplacian( open, lap, CV_16S, 1,1,0, BORDER_DEFAULT);
+	convertScaleAbs(lap, abslap);
+	
+	vector<vector<Point> > contours;
+	vector<Vec4i> hierarchy;
+	findContours( abslap, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE );
+	Mat drawing = Mat::zeros( abslap.size(), CV_8UC3 );
+	for( size_t i = 0; i< contours.size(); i++ ){
+	        Scalar color = Scalar(0,255,25*i);
+        	drawContours( drawing, contours, (int)i, color, 2, LINE_8, hierarchy, 0 );
+    	}
+
+	namedWindow("Preview", WINDOW_NORMAL);
+	imshow("Preview", drawing);
+	int k = waitKey(0);
+}
+
 
 void linearContrast(Mat img, Mat contrast, float a, float b){
 	contrast=Mat::zeros( img.size(), img.type() );
