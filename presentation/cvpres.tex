@@ -105,20 +105,47 @@
 			\[f_0 = a_N\]
 			\[f_n = s^2 f_{n-1}+a_{N-n}\]
 			\[B_N(s) = f_N\]
-		This baseline is then subtracted from the total image. 
+		This baseline is then subtracted from the total image. After flattening, the contrast may be increased to make flakes more apparent,
 	\end{itemize}
 \end{frame}
 
 \begin{frame}
 	\frametitle{Flattening Results}
+	Initial test: 2 fixed points
+	\begin{center}
+		\includegraphics[scale = 0.3]{image/magic2.png}
+	\end{center}
+\end{frame}
 
+\begin{frame}
+	\frametitle{Flattening Results}
+	General: 1 Sample
+	\begin{center}
+		\includegraphics[scale = 0.25]{image/1samp.png}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Flattening Results}
+	General: 3 Sample
+	\begin{center}
+		\includegraphics[scale = 0.25]{image/3samp.png}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Flattening Results}
+	General: 5 Sample
+	\begin{center}
+		\includegraphics[scale = 0.25]{image/5samp.png}
+	\end{center}
 \end{frame}
 
 \begin{frame}
 	\frametitle{Blurring and Morphological Tranforms}
 	\begin{itemize}
-		\item<1->To reduce noise, first a gaussian blur was used to ``average out'' the initial image, before the process of flattening.
-		\item<2->After flattening, the noise was removed using a combination of the morphological transformations Open, Close, Erode, Dilate included in the OpenCV API.
+		\item<1->To reduce noise, first a gaussian blur was used to ``average out'' the noise in the initial image, before the process of flattening.
+		\item<2->After flattening, the noise was further removed using a combination of the morphological transformations Open, Close, Erode, Dilate included in the OpenCV API.
 		\begin{itemize}
 			\item<3-> Erosion returns 1 only if all pixels in the kernel are 1
 			\item<4-> Dilation returns 1 if any pixel in the kernel is 1
@@ -130,13 +157,23 @@
 
 \begin{frame}
 	\frametitle{Denoising Results}
+	\begin{center}
+		\includegraphics[scale = 0.3]{image/morph1.png}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Denoising Results}
+	\begin{center}
+		\includegraphics[scale = 0.3]{image/morph2.png}
+	\end{center}
 \end{frame}
 
 \begin{frame}
 	\frametitle{Edge Detection, Contouring, and Transmission Measurement (partial)}
 	\begin{itemize}
 		\item<1-> Edge detection is can be done using a gradient method, such as Sobel Derivatives and the Laplacian, to detect where the intensity of an image changes quickly---an ``edge''
-		\item<2-> After the edge is detected, the \emph{contour} method of OpenCV generates sets of isolines---contours---as the sets of boundaries
+		\item<2-> After the edges are detected, they are thresholded to only allow for stronger edges to remain. The \emph{contour} method of OpenCV then generates sets of points on isolines---contours---as the sets of boundaries
 		\item<3-> The flakes can be inferred to be regions contained within closed boundaries.
 		\item<4-> The flakes can be filtered from noise and other objects by measuring the transmission relative to the approximated baseline.
 		\item<5-> While I have proposed these methods, I haven't been able to test them too much.
@@ -145,6 +182,35 @@
 
 \begin{frame}
 	\frametitle{Flake Determination Results}
+	Morphology, Contrast bump, Sobel Derivative
+	\begin{center}
+		\includegraphics[scale=0.05]{image/closecontrastsobel.png}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Flake Determination Results}
+	Morphology, Contrast bump, Sobel Derivative
+	\begin{center}
+		\includegraphics[scale=0.05]{image/closecontrastsobel2-4-20.png}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Flake Determination Results}
+	Morphology, Contrast bump, Laplacian
+	\begin{center}
+		\includegraphics[scale=0.05]{image/closecontrastlaplacian2-4-20.png}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Flake Determination Results}
+	Contours
+	\begin{center}
+		\includegraphics[scale=0.13]{image/contourbefore.png}
+		\includegraphics[scale=0.13]{image/contour.png}
+	\end{center}
 \end{frame}
 
 \begin{frame}
