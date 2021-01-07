@@ -139,7 +139,10 @@ int main(int argc, char** argv){
 	return 0;
 }
 
-
+/* Attempt to find centre and aspect ratio by increasing contrast to create clear boundaries between intensities.
+ * *DOES NOT WORK*
+ * changing the contrast changes the centre, so likely not a good way to determine the centre
+ */
 void findCenter(Mat img, float* c){
 	Mat center=Mat::zeros( img.size(), img.type() );
 	Mat shift=Mat::zeros( img.size(), img.type() );
@@ -189,7 +192,13 @@ void findCenter(Mat img, float* c){
 	int k = waitKey(0);
 }
 
-
+/* Increase contrast by using the linear transform y = a(x-b)
+ * *DOES NOT WORK*
+ * arguments:	Mat img the image to be modified
+ * 		Mat contrast the location to store the new image
+ * 		float a the scale factor
+ * 		float b the offset factor
+ */
 void linearContrast(Mat img, Mat contrast, float a, float b){
 	contrast=Mat::zeros( img.size(), img.type() );
 	for (int y = 0; y < img.rows; y++) {
@@ -199,6 +208,12 @@ void linearContrast(Mat img, Mat contrast, float a, float b){
 	}
 }
 
+/* Increase contrast by altering gamma value
+ * *DOES NOT WORK*
+ * arguments:	Mat img the image to imcrease contrast
+ * 		Mat gamma the location to store the modified image
+ * 		float g the gamma value
+ */
 void gammaContrast(Mat img, Mat gamma, float g){
 	Mat lookUpTable(1, 256, CV_8U);
 	uchar* p = lookUpTable.ptr();
@@ -209,6 +224,14 @@ void gammaContrast(Mat img, Mat gamma, float g){
 	LUT(img, lookUpTable, gamma);
 }
 
+/* Flatten the background using elliptical symmetry and polynomial approximation
+ * arguments:	Mat img the image to be flattened
+ * 		Mat* flat an array to be contain the flattened image and the calculated background
+ * 		float* a an array to hold the calculated coefficients of the background approximation
+ * 		float* c the assumed centre of the background
+ * 		float ar the assumed aspect ratio of the background
+ * 		int n the number of samples to be taken. Should be less than 10.
+ */
 void flatten(Mat img, Mat* flat, float* a, float* c, float ar, int n){
 	cout<<"Samples to be taken: "<<n<<endl;
 	float dim[2]={img.cols, img.rows};
@@ -314,6 +337,14 @@ void flatten(Mat img, Mat* flat, float* a, float* c, float ar, int n){
 	}
 }
 
+/* From the background coefficients a[n], determines the background value and calculates the transmission of a point
+ * arguments:	Mat img is the image to be analyzed
+ * 		float* r is the location of the point to be analyzed
+ * 		float* c is the centre of the background
+ * 		float ar is the aspect ratio of the background
+ * 		float* a is the array of background cefficients
+ * 		int n is the size of the array a[n]
+ */
 float transmittance(Mat img, float* r, float* c, float ar, float* a, int n){
 	float s2 = (r[0]-c[0])*(r[0]-c[0]) + ar*ar*(r[1]-c[1])*(r[1]-c[1]);
 	float base = 0;
@@ -329,6 +360,7 @@ float transmittance(Mat img, float* r, float* c, float ar, float* a, int n){
 	return value/base;
 }
 
+/* Find the median value of a vector of values */
 float findMedian(vector<int> values){
 	vector<int> sorted = values;
 	sort(sorted.begin(), sorted.end());
@@ -341,6 +373,10 @@ float findMedian(vector<int> values){
 
 }
 
+/* Use the midpoint algorithm to rasterize an ellipse and generate a list of points.
+ * arguments: 	float array c[2] which denotes the centre of the ellipse
+ * 		float array r[2] which denotes the length of the axes.
+ */
 vector<vector<int>> ellipsePoints(float* c, float* r){
 	vector<vector<int>> ellipse;
 	float x = 0, y = r[1];
