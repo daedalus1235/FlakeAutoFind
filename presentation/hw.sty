@@ -1,0 +1,203 @@
+\ProvidesPackage{hw}[HW macros]
+
+\usepackage{amsmath,amsthm,amssymb,amsfonts}    %general math
+\usepackage{enumitem}                           
+\usepackage{cancel}                             %\cancel? idk
+\usepackage[T1]{fontenc}                        %inexact diff
+\usepackage[utf8]{inputenc}
+\usepackage{harpoon}                            %better vector arrow
+\usepackage{esint}
+\usepackage{tikz, quantikz}
+\usepackage[version=4]{mhchem}                  %chem eqn
+\usepackage{chemfig}				%benzene qed; chemical structures
+\usepackage{pdfpages}                           %insert pdf
+\usepackage{ifthen}
+\usepackage{siunitx}                            %SI units
+\usepackage{mathtools}
+\usepackage{textcomp}
+\usepackage{tensor}                             %indices galore
+\usepackage{bbm}                                %more blackboard char
+\usepackage{caption}                            %for multicol figs
+\usepackage{hyperref}                           %hyperlinks
+\usepackage{booktabs}				%so my linter doesn't yell at me
+\DeclareUnicodeCharacter{2212}{-}               %why is this never defined
+\DeclareMathSymbol{*}{\mathbin}{symbols}{"01}   %asterisk is dot
+
+\setlength{\parskip}{.5em}
+
+%inexact differential
+\newcommand{\dbar}[1]{\ensuremath{\operatorname{\text{\dj}}\!{#1}\,}}
+
+\let\oldast\ast
+\renewcommand{\ast}{^{\oldast}}
+\renewcommand*{\proofname}{Solution} 
+\newcommand{\adj}{\ensuremath{^{\dagger}}}
+
+\let\then\implies
+ 
+%number types
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\R}{\mathbb{R}}
+
+%complex
+\newcommand{\C}{\mathbb{C}}
+\renewcommand{\Re}{\operatorname{Re}}
+\renewcommand{\Im}{\operatorname{Im}}
+
+%linear map
+\renewcommand{\L}{\mathcal{L}}
+
+%derivatives at point
+\newcommand\at[2]{\left.#1\right|_{#2}}
+%integral bounds
+\newcommand\eval[3]{\left[\left.#1\right|_{#2}^{#3}\right]}
+\newcommand\deval[3]{\left.#1\right|_{#2}^{#3}}
+
+%text formatting
+\let\bf\textbf
+\let\it\textit
+
+%basic vectors
+\newcommand{\vv}[1]{\overrightharp{\ensuremath{#1}}}
+\let\v\undefined
+\newcommand{\v}[1]{\vv{\mathbf{#1}}}
+\newcommand{\vb}[1]{\mathbf{#1}}
+\newcommand{\vi}[1]{\vv{\mathit{#1}}}
+\newcommand{\vk}[1]{\begin{bmatrix}#1\end{bmatrix}}
+\newcommand{\vect}[1]{\left\langle \begin{matrix}#1\end{matrix} \right\rangle}
+\newcommand{\ih}{\hat{\imath}}
+\newcommand{\jh}{\hat{\jmath}}
+\newcommand{\kh}{\hat{k}}
+\newcommand{\e}[1]{\ensuremath{\,\hat{e}_{#1}}}
+
+%vector functions
+\let\cross\times
+\let\x\times
+\let\tp\otimes
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+
+%abs value
+\newcommand{\abs}[1]{\left|#1\right|}
+
+%augmented matrix; parameter is number of rows before augment
+\newenvironment{amatrix}[1]{%
+  \left[\begin{array}{@{}*{#1}{c}|c@{}}
+}{%
+  \end{array}\right]
+}
+
+
+%benzene as qed symbol
+\usepackage{stackengine,wasysym,scalerel}
+\def\smallbenz{\scalerel*{\kern-3pt%
+\stackinset{c}{0.95pt}{b}{2.2pt}{-}{%
+\rotatebox[origin=center]{120}{\stackinset{c}{-0.4pt}{b}{.3pt}{-}{%
+\rotatebox[origin=center]{120}{\stackinset{c}{.24pt}{b}{-1.5pt}{-}{%
+\hexagon}}}}}}{\rule[-.75\baselineskip]{1pt}{2\baselineskip}}\kern-3pt}
+\renewcommand{\qedsymbol}{\smallbenz}
+
+\newcommand\pder[2]{\frac{\partial #1}{\partial #2}}
+
+\makeatletter
+\newcommand\der[2]{%
+    \begingroup
+    \@temptokena{\@gobble}%
+    \@tempcnta\z@
+    \@for\var:=#2\do{%
+        \expandafter\@der\var\relax
+    }%
+    \ensuremath{\frac{\text{d}
+    \ifnum\@tempcnta>\@ne
+        ^{\the\@tempcnta}%
+    \fi
+    #1}{\the\@temptokena}}%
+    \endgroup
+}
+
+\def\@der#1#2\relax{%
+    \ifx\relax#2\relax
+        \advance\@tempcnta by \@ne
+        \@temptokena\expandafter{\the\@temptokena\,\text{d}{#1}}%
+    \else
+        \advance\@tempcnta by #2\relax
+        \@temptokena\expandafter{\the\@temptokena\,\text{d}{#1}^{#2}}%
+    \fi
+}
+
+\newcommand\del\nabla
+
+\makeatother
+
+
+
+%differential
+
+\renewcommand{\d}[2][]{%
+   \ifthenelse{ \equal{#1}{} }
+      {\ensuremath{\operatorname{d}\!{#2}\,}}
+      {\ensuremath{\operatorname{d}^{#1}\!{#2}\,}}
+}
+
+%units
+
+\sisetup{inter-unit-product =\ensuremath{\cdot}}
+\setlength{\parindent}{0pt}
+
+%quick greek
+\let\p\psi
+\let\P\Psi
+\let\f\phi
+\let\F\Phi
+
+%braket
+
+\let\b\undefined
+\let\k\undefined
+\DeclarePairedDelimiter\b{\langle}{\rvert}
+\DeclarePairedDelimiter\k{\lvert}{\rangle}
+\DeclarePairedDelimiterX\bk[2]{\langle}{\rangle}{#1 \delimsize\vert #2}
+
+
+\allowdisplaybreaks
+
+
+%Levi-Civita Symbol
+\newcommand{\lc}[1]{\ensuremath{\tensor{\varepsilon}{#1}}}
+%Kronecker Delta
+\newcommand{\kd}[1]{\ensuremath{\tensor{\delta}{#1}}}
+
+\DeclareMathOperator{\sgn}{sgn}
+
+\let\to\rightarrow
+
+\let\h\hat
+
+
+
+\newcommand{\T}{^\intercal}
+
+\let\up\uparrow
+\let\dn\downarrow
+
+\DeclareMathOperator{\tr}{tr}
+
+
+%Boxed aside environment. Note: you cannot have a float (i.e. table or figure environment) inside the aside. Instead, use the \captionsetup{type=table}\captionof{table/float}{caption}\label{tab/fig:ref} macros
+\newsavebox{\mybox}
+\newenvironment{aside}[1][\unskip]
+{\begin{center}\begin{lrbox}{\mybox}\centering\begin{minipage}{\textwidth-.6em}\begin{minipage}{.98\textwidth}\vspace{.5em}\begin{center}\underbar{#1}\end{center}\vspace{1em}}
+{\vspace{.5em}\end{minipage}\end{minipage}\end{lrbox}\fbox{\usebox{\mybox}}\end{center}}
+
+
+%nCr
+\newcommand{\ncr}[2]{\begin{pmatrix}#1\\#2\end{pmatrix}}
+
+%Griffiths r
+\usepackage{calligra}
+\DeclareMathAlphabet{\mathcalligra}{T1}{calligra}{m}{n}
+\DeclareFontShape{T1}{calligra}{m}{n}{<->s*[2.2]callig15}{}
+
+\newcommand{\sr}{\mathcalligra{r}\,}
+\newcommand{\br}{\pmb{\mathcalligra{r}}\,}
+
