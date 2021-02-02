@@ -29,48 +29,55 @@ float findMedian(vector<int>);
 void findCenter(Mat, float*);
 vector<vector<int>> ellipsePoints(float*, float*);
 
-int main(int argc, char** argv){
+int main(int argc, char** argv){ //Syntax is ./FlakeAutoFind {image/path} {n degree}
 	cout<<"OpenCV version: "<< CV_VERSION << endl;
+	string image_path = argv[1]; 
 
-	string image_path = argv[1];
-
+	//open image
 	Mat img = imread( image_path, IMREAD_COLOR );
+
+	//dimensions of image
 	float dim[] = {img.cols, img.rows};
 	cout<<dim[0] << "x" << dim[1] <<endl;
-
+	
+	//if empty, return error
 	if( img.empty()){
 		cout<< "Could not read the image: " << image_path << endl;
 		return -1;
 	}
 	cout<<"Image Loaded!"<<endl;
-
+	
+	//level of approximation. Must be applied to run? but default=3
 	int N = 3;
 	if (argc > 1){
 		N = std::stoi(argv[2]);
 	}
-
+	
+	//blur to reduce some noise; kernel size 3x3 and gaussian blur
 	Mat imgblur;
 	GaussianBlur(img, imgblur, Size(3,3), 0, 0, BORDER_DEFAULT);
 
 	
+	//split the image into the blue-0, green-1, red-2 channels
 	Mat bgr[3];	
-	//split(img, bgr);
 	split(imgblur, bgr);
 
-	Mat blue = bgr[1];
-
+	//placeholder for flattening
 	Mat flat[3][2];
 
+	//aspect ratio
 	float ar = dim[0]/dim[1];
+	//placeholder for coefficients
 	float a[3][N];
+	//flatten all three channels individually
 	for( int i = 0; i<3; i++){
-		float c[2];
-		findCenter(bgr[i], c);
+		float c[] = {dim[0]/2,dim[1]/2};
+		//findCenter(bgr[i], c);
 		flatten(bgr[i], flat[i], a[i], c, ar, N);
-
-		return 1;
 	}
 	
+
+	//Morphological transforms to reduce noise
 	Mat open;
 	Mat const open_kernel = getStructuringElement(MORPH_RECT, Size(7,7));
 	morphologyEx(flat[2][0], open, MORPH_OPEN, open_kernel);
@@ -82,17 +89,21 @@ int main(int argc, char** argv){
 	Mat close;
 	Mat const close_kernel = getStructuringElement(MORPH_RECT, Size(20,20));
 	morphologyEx(erode,close, MORPH_CLOSE, close_kernel);
-
+	
+	//Increase contrast
 	float alpha = 10;
 	float beta  = 15;
 	float gamma = 0.5;
 	Mat contrast = Mat::zeros(close.size(), close.type());
+	//linear contrast increase
+	//linearContrast(flat[2][0], blur, 10, 15); doesn't work for some reason, despite being exactly the same? i probably screwed up a pointer/reference or something
 	for (int y = 0; y < close.rows; y++) {
 		for (int x = 0; x < close.cols; x++) {
 			contrast.at<uchar>(y,x) = alpha*(flat[2][0].at<uchar>(y,x) - beta);
 		}
 	}
-	//linearContrast(flat[2][0], blur, 10, 15);
+
+	//blur again but for edge detection methods
 	Mat blur;
 	GaussianBlur(contrast, blur, Size(3,3), 0, 0, BORDER_DEFAULT);
 	
@@ -107,12 +118,13 @@ int main(int argc, char** argv){
 	addWeighted(absdelx, 0.5, absdely, 0.5, 0, grad);
 	*/
 
-	/*Laplacian*/
+	/*Laplacian edge detection*/
 	Mat lap, abslap;
 	Laplacian( blur, lap, CV_16S, 1,1,0, BORDER_DEFAULT);
 	convertScaleAbs(lap, abslap);
 
 
+	//display window to show image manipulation
 	float scale = 0.6;
 
 	namedWindow("Debug View", WINDOW_NORMAL);
@@ -144,19 +156,20 @@ int main(int argc, char** argv){
  * changing the contrast changes the centre, so likely not a good way to determine the centre
  */
 void findCenter(Mat img, float* c){
-	Mat center=Mat::zeros( img.size(), img.type() );
+	Mat center=Mat::zeros( img.size(), img.type() );//not sure if this line is used but too scared to delete it
 	Mat shift=Mat::zeros( img.size(), img.type() );
-	double avg = mean(img)[0];
+	double avg = mean(img)[0];//average pixel value
 	
 	for (int y = 0; y < img.rows; y++) {
 		for (int x = 0; x < img.cols; x++) {
-			shift.at<uchar>(y,x) = img.at<uchar>(y,x)-avg-4;
+			shift.at<uchar>(y,x) = img.at<uchar>(y,x)-avg-4; //set shift to be the entire image shifted down more than the average.
 		}
 	}
 	
 	Mat thresh;
-	threshold( shift, thresh, 200, 255, 0);
+	threshold( shift, thresh, 200, 255, 0); //thresh_binary to make sharp edges to detect
 	
+	//morphology to make edge easier to detect
 	Mat dilate;
 	Mat const dilate_kernel = getStructuringElement(MORPH_RECT, Size(8,8));
 	morphologyEx(thresh, dilate, MORPH_DILATE, dilate_kernel);
@@ -178,6 +191,7 @@ void findCenter(Mat img, float* c){
 	Laplacian( open, lap, CV_16S, 1,1,0, BORDER_DEFAULT);
 	convertScaleAbs(lap, abslap);
 	
+	//obtain contours of same intensity
 	vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
 	findContours( abslap, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE );
@@ -238,9 +252,10 @@ void flatten(Mat img, Mat* flat, float* a, float* c, float ar, int n){
 	float samp2[n]; //sample locations squared
 	float b[1][n]; //sample values
 
-	flat[0] = Mat::zeros(img.rows, img.cols, CV_8UC1);//
-	flat[1] = Mat::zeros(img.rows, img.cols, CV_8UC1);//
+	flat[0] = Mat::zeros(img.rows, img.cols, CV_8UC1);//init ``empty''
+	flat[1] = Mat::zeros(img.rows, img.cols, CV_8UC1);//init ``empty''
 	
+	//determine locations s_i^2 to obtain samples
 	samp2[0]=(dim[0]-c[0])*(dim[0]-c[0])+ar*ar*(dim[1]-c[1])*(dim[1]-c[1]);
 	samp2[0]-=2;
 	samp2[0]/=n;
@@ -265,7 +280,7 @@ void flatten(Mat img, Mat* flat, float* a, float* c, float ar, int n){
 		}
 		b[0][i]=findMedian(ellvals);
 		cout<<"B"<<i<<": "<<b[0][i]<<endl;
-	}//determine b at each s^2
+	}//determine median b at each s^2
 	cout<<"Samples Taken!"<<endl;
 
 	//regression
@@ -277,7 +292,7 @@ void flatten(Mat img, Mat* flat, float* a, float* c, float ar, int n){
 			else
 				Sarr[i][j]=(i+1)*Sarr[i][j-1];
 		}
-	}
+	}//build S matrix
 	Mat S(n,n, CV_32F, Sarr);
 	cout<<"S="<<nl<<S<<endl;
 	
@@ -297,7 +312,7 @@ void flatten(Mat img, Mat* flat, float* a, float* c, float ar, int n){
 				Carr[i][j]=-Carr[i][j-1]*(i-j+1)/(j);
 			}
 		}
-	}
+	}//build C matrix
 	Mat C(n,n, CV_32F, Carr);
 	cout<<"C="<<nl<<C<<endl;
 		
@@ -316,7 +331,7 @@ void flatten(Mat img, Mat* flat, float* a, float* c, float ar, int n){
 			a[i]-=(T.at<float>(j,i)*a[j]*pow(samp2[j],j));
 		}
 		a[i]/=(T.at<float>(i,i)*pow(samp2[i],i));
-	}
+	}//back substitute for coefficient values
 	cout<<"Coefficients: [ ";
 	for( int i = 0; i<n; i++){
 		cout<<a[i]<<" ";
@@ -334,7 +349,7 @@ void flatten(Mat img, Mat* flat, float* a, float* c, float ar, int n){
 			flat[1].at<uchar>(y,x)=bg;
 			flat[0].at<uchar>(y,x)=img.at<uchar>(y,x) - bg;
 		}
-	}
+	}//return flat[1] which is the pure background, and flat[0] which is the background corrected image
 }
 
 /* From the background coefficients a[n], determines the background value and calculates the transmission of a point
@@ -370,7 +385,6 @@ float findMedian(vector<int> values){
 		return ( ((float)sorted[middle-1] +(float)sorted[middle])/2);
 	}
 	return (float)sorted[middle];
-
 }
 
 /* Use the midpoint algorithm to rasterize an ellipse and generate a list of points.
