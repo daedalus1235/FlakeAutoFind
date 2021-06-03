@@ -21,7 +21,8 @@ using std::string;
 using std::vector;
 using namespace cv;
 
-void flatten(Mat, Mat*, float*, float*, float, int);
+void dftProc(const Mat,Mat&);
+void flatten(const Mat, Mat*, float*, float*, float, int);
 void linearContrast(Mat, Mat, float, float);
 void gammaContrast(Mat, Mat, float);
 float transmittance(Mat, float*, float*, float, float*, int);
@@ -40,7 +41,7 @@ int main(int argc, char** argv){ //Syntax is ./FlakeAutoFind {image/path} {n deg
 	float dim[] = {img.cols, img.rows};
 	cout<<dim[0] << "x" << dim[1] <<endl;
 	
-	//if empty, return error
+	//if image container is empty, return error
 	if( img.empty()){
 		cout<< "Could not read the image: " << image_path << endl;
 		return -1;
@@ -54,16 +55,17 @@ int main(int argc, char** argv){ //Syntax is ./FlakeAutoFind {image/path} {n deg
 	}
 	
 	//blur to reduce some noise; kernel size 3x3 and gaussian blur
-	Mat imgblur;
-	GaussianBlur(img, imgblur, Size(3,3), 0, 0, BORDER_DEFAULT);
+	//Mat imgblur;
+	//GaussianBlur(img, imgblur, Size(3,3), 0, 0, BORDER_DEFAULT);
 
 	
 	//split the image into the blue-0, green-1, red-2 channels
 	Mat bgr[3];	
-	split(imgblur, bgr);
+	split(img, bgr); //replace img with imgblur?
 
+	
 	//placeholder for flattening
-	Mat flat[3][2];
+	Mat flat[3][2]; //should be [3][2] for bgr/ fg,bg
 
 	//aspect ratio
 	float ar = dim[0]/dim[1];
@@ -71,12 +73,12 @@ int main(int argc, char** argv){ //Syntax is ./FlakeAutoFind {image/path} {n deg
 	float a[3][N];
 	//flatten all three channels individually
 	for( int i = 0; i<3; i++){
-		float c[] = {dim[0]/2,dim[1]/2};
+		float c[] = {1380,800};//{dim[0]/2,dim[1]/2};
 		//findCenter(bgr[i], c);
 		flatten(bgr[i], flat[i], a[i], c, ar, N);
 	}
 	
-
+	/*
 	//Morphological transforms to reduce noise
 	Mat open;
 	Mat const open_kernel = getStructuringElement(MORPH_RECT, Size(7,7));
@@ -107,22 +109,25 @@ int main(int argc, char** argv){ //Syntax is ./FlakeAutoFind {image/path} {n deg
 	Mat blur;
 	GaussianBlur(contrast, blur, Size(3,3), 0, 0, BORDER_DEFAULT);
 	
-	/*Sobel Derivatives
-	Mat delx, dely;
-	Sobel(blur, delx, CV_16S, 1, 0, 1, 1, 0, BORDER_DEFAULT);
-	Sobel(blur, dely, CV_16S, 0, 1, 1, 1, 0, BORDER_DEFAULT);
-	Mat absdelx, absdely;
-	convertScaleAbs(delx, absdelx);
-	convertScaleAbs(dely, absdely);
-	Mat grad;
-	addWeighted(absdelx, 0.5, absdely, 0.5, 0, grad);
-	*/
+	//Sobel Derivatives
+	//Mat delx, dely;
+	//Sobel(blur, delx, CV_16S, 1, 0, 1, 1, 0, BORDER_DEFAULT);
+	//Sobel(blur, dely, CV_16S, 0, 1, 1, 1, 0, BORDER_DEFAULT);
+	//Mat absdelx, absdely;
+	//convertScaleAbs(delx, absdelx);
+	//convertScaleAbs(dely, absdely);
+	//Mat grad;
+	//addWeighted(absdelx, 0.5, absdely, 0.5, 0, grad);
+	
 
-	/*Laplacian edge detection*/
+	//Laplacian edge detection/
 	Mat lap, abslap;
 	Laplacian( blur, lap, CV_16S, 1,1,0, BORDER_DEFAULT);
 	convertScaleAbs(lap, abslap);
+	*/
 
+	Mat dft;
+	dftProc(flat[2][0],dft);
 
 	//display window to show image manipulation
 	float scale = 0.6;
@@ -135,109 +140,66 @@ int main(int argc, char** argv){ //Syntax is ./FlakeAutoFind {image/path} {n deg
 
 	bgr[2].copyTo(debug(Rect(0,0,dim[0],dim[1])));
 	cout<<"Displayed Red!"<<nl;
-	close.copyTo(debug(Rect(dim[0],0,dim[0],dim[1])));
+	dft.copyTo(debug(Rect(dim[0],0,dim[0],dim[1])));
+	cout<<"Displayed FT!"<<nl;
+	flat[2][1].copyTo(debug(Rect(0,dim[1],dim[0],dim[1])));
 	cout<<"Displayed BG!"<<nl;
-	contrast.copyTo(debug(Rect(0,dim[1],dim[0],dim[1])));
-	cout<<"Displayed Flattened!"<<nl;
-	abslap.copyTo(debug(Rect(dim[0],dim[1],dim[0],dim[1])));
-	cout<<"Displayed Morphology Transformed!"<<endl;
+	flat[2][0].copyTo(debug(Rect(dim[0],dim[1],dim[0],dim[1])));
+	cout<<"Displayed Flattened!"<<endl;
 	
 	imshow("Debug View", debug);
 	cout<<"Displayed Debug!"<<endl;
-	int k = waitKey(0);
 
 	imwrite("output.png", debug);
+	int k = waitKey(0);
 	
 	return 0;
 }
 
-/* Attempt to find centre and aspect ratio by increasing contrast to create clear boundaries between intensities.
- * *DOES NOT WORK*
- * changing the contrast changes the centre, so likely not a good way to determine the centre
- */
-void findCenter(Mat img, float* c){
-	Mat center=Mat::zeros( img.size(), img.type() );//not sure if this line is used but too scared to delete it
-	Mat shift=Mat::zeros( img.size(), img.type() );
-	double avg = mean(img)[0];//average pixel value
-	
-	for (int y = 0; y < img.rows; y++) {
-		for (int x = 0; x < img.cols; x++) {
-			shift.at<uchar>(y,x) = img.at<uchar>(y,x)-avg-4; //set shift to be the entire image shifted down more than the average.
-		}
-	}
-	
-	Mat thresh;
-	threshold( shift, thresh, 200, 255, 0); //thresh_binary to make sharp edges to detect
-	
-	//morphology to make edge easier to detect
-	Mat dilate;
-	Mat const dilate_kernel = getStructuringElement(MORPH_RECT, Size(8,8));
-	morphologyEx(thresh, dilate, MORPH_DILATE, dilate_kernel);
+void dftProc(const Mat img, Mat& out){
+	//DFT
+	Mat padded;
+	int ny = getOptimalDFTSize( img.rows );
+	int nx = getOptimalDFTSize( img.cols);
+	copyMakeBorder(img, padded, 0, ny-img.rows, 0, nx-img.cols, BORDER_CONSTANT, Scalar::all(0));
 
-	Mat close;
-	Mat const close_kernel = getStructuringElement(MORPH_RECT, Size(10,10));
-	morphologyEx(thresh, close, MORPH_CLOSE, close_kernel);
+	Mat planes[] = {Mat_<float>(padded),Mat::zeros(padded.size(), CV_32F)};
+	Mat complexImg;
+	merge(planes, 2, complexImg);
 
-	Mat erode;
-	Mat const erode_kernel = getStructuringElement(MORPH_RECT, Size(10,10));
-	morphologyEx(close, erode, MORPH_ERODE, erode_kernel);
+	dft(complexImg, complexImg);
+	split(complexImg, planes);
+	magnitude(planes[0],planes[1],planes[0]);
+	Mat mag = planes[0];
 
-	Mat open;
-	Mat const open_kernel = getStructuringElement(MORPH_RECT, Size(7,7));
-	morphologyEx(erode, open, MORPH_OPEN, open_kernel);
-	
-	
-	Mat lap, abslap;
-	Laplacian( open, lap, CV_16S, 1,1,0, BORDER_DEFAULT);
-	convertScaleAbs(lap, abslap);
-	
-	//obtain contours of same intensity
-	vector<vector<Point> > contours;
-	vector<Vec4i> hierarchy;
-	findContours( abslap, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE );
-	Mat drawing = Mat::zeros( abslap.size(), CV_8UC3 );
-	for( size_t i = 0; i< contours.size(); i++ ){
-	        Scalar color = Scalar(0,255,25*i);
-        	drawContours( drawing, contours, (int)i, color, 2, LINE_8, hierarchy, 0 );
-    	}
+	mag+= Scalar::all(1);
+	log(mag, mag);
 
-	namedWindow("Preview", WINDOW_NORMAL);
-	imshow("Preview", drawing);
-	int k = waitKey(0);
+	mag= mag(Rect(0,0,mag.cols & -2, mag.rows & -2));
+	
+	int dftdim[] = {mag.cols,mag.rows};
+	cout<<"DFT: "<<dftdim[0] << "x" << dftdim[1] <<endl;
+	int cx = dftdim[0]/2;
+	int cy = dftdim[1]/2;
+
+	Mat q0(mag, Rect(0 ,0 ,cx,cy));
+	Mat q1(mag, Rect(cx,0 ,cx,cy));
+	Mat q2(mag, Rect(0 ,cy,cx,cy));
+	Mat q3(mag, Rect(cx,cy,cx,cy));
+
+	Mat tmp;
+	q0.copyTo(tmp);
+	q3.copyTo(q0);
+	tmp.copyTo(q3);
+
+	
+	q1.copyTo(tmp);
+	q2.copyTo(q1);
+	tmp.copyTo(q2);
+
+	normalize(mag, mag, 0,1, NORM_MINMAX);
+	out = mag;
 }
-
-/* Increase contrast by using the linear transform y = a(x-b)
- * *DOES NOT WORK*
- * arguments:	Mat img the image to be modified
- * 		Mat contrast the location to store the new image
- * 		float a the scale factor
- * 		float b the offset factor
- */
-void linearContrast(Mat img, Mat contrast, float a, float b){
-	contrast=Mat::zeros( img.size(), img.type() );
-	for (int y = 0; y < img.rows; y++) {
-		for (int x = 0; x < img.cols; x++) {
-			contrast.at<uchar>(y,x) = a*(img.at<uchar>(y,x) - b);
-		}
-	}
-}
-
-/* Increase contrast by altering gamma value
- * *DOES NOT WORK*
- * arguments:	Mat img the image to imcrease contrast
- * 		Mat gamma the location to store the modified image
- * 		float g the gamma value
- */
-void gammaContrast(Mat img, Mat gamma, float g){
-	Mat lookUpTable(1, 256, CV_8U);
-	uchar* p = lookUpTable.ptr();
-	for (int i = 0; i < 256; ++i) {
-		p[i] = saturate_cast<uchar>(pow(i/255, g)*255);
-	}
-	gamma = img.clone();
-	LUT(img, lookUpTable, gamma);
-}
-
 /* Flatten the background using elliptical symmetry and polynomial approximation
  * arguments:	Mat img the image to be flattened
  * 		Mat* flat an array to be contain the flattened image and the calculated background
@@ -246,7 +208,7 @@ void gammaContrast(Mat img, Mat gamma, float g){
  * 		float ar the assumed aspect ratio of the background
  * 		int n the number of samples to be taken. Should be less than 10.
  */
-void flatten(Mat img, Mat* flat, float* a, float* c, float ar, int n){
+void flatten(const Mat img, Mat* flat, float* a, float* c, float ar, int n){
 	cout<<"Samples to be taken: "<<n<<endl;
 	float dim[2]={img.cols, img.rows};
 	float samp2[n]; //sample locations squared
@@ -256,14 +218,17 @@ void flatten(Mat img, Mat* flat, float* a, float* c, float ar, int n){
 	flat[1] = Mat::zeros(img.rows, img.cols, CV_8UC1);//init ``empty''
 	
 	//determine locations s_i^2 to obtain samples
-	samp2[0]=(dim[0]-c[0])*(dim[0]-c[0])+ar*ar*(dim[1]-c[1])*(dim[1]-c[1]);
-	samp2[0]-=2;
+	int ra = max(c[0],abs(dim[0]-c[0]));
+	int rb = max(c[1],abs(dim[1]-c[1]));
+	samp2[0]=ra*ra+ar*ar*rb*rb;
+	samp2[0]*=0.99;
 	samp2[0]/=n;
 	cout<<"Sample Separation: "<<samp2[0]<<endl;
 
 	for( int i = 1; i<n; i++){
 		samp2[i] = samp2[i-1]+samp2[0];
 	}//populate s^2 values
+	
 	
 	for( int i = 0; i < n; i++ ){
 		float r[2] = {sqrt(samp2[i]), sqrt(samp2[i])/ar};
@@ -278,11 +243,12 @@ void flatten(Mat img, Mat* flat, float* a, float* c, float ar, int n){
 				ellvals.push_back(val);
 			}
 		}
+		cout<<endl;
 		b[0][i]=findMedian(ellvals);
 		cout<<"B"<<i<<": "<<b[0][i]<<endl;
 	}//determine median b at each s^2
 	cout<<"Samples Taken!"<<endl;
-
+	
 	//regression
 	float Sarr[n][n];
 	for( int i = 0; i < n; i++){
@@ -473,4 +439,91 @@ vector<vector<int>> ellipsePoints(float* c, float* r){
 	}
 
 	return ellipse;
+}
+
+/* Attempt to find centre and aspect ratio by increasing contrast to create clear boundaries between intensities.
+ * *DOES NOT WORK*
+ * changing the contrast changes the centre, so likely not a good way to determine the centre
+ */
+void findCenter(Mat img, float* c){
+	Mat center=Mat::zeros( img.size(), img.type() );//not sure if this line is used but too scared to delete it
+	Mat shift=Mat::zeros( img.size(), img.type() );
+	double avg = mean(img)[0];//average pixel value
+	
+	for (int y = 0; y < img.rows; y++) {
+		for (int x = 0; x < img.cols; x++) {
+			shift.at<uchar>(y,x) = img.at<uchar>(y,x)-avg-4; //set shift to be the entire image shifted down more than the average.
+		}
+	}
+	
+	Mat thresh;
+	threshold( shift, thresh, 200, 255, 0); //thresh_binary to make sharp edges to detect
+	
+	//morphology to make edge easier to detect
+	Mat dilate;
+	Mat const dilate_kernel = getStructuringElement(MORPH_RECT, Size(8,8));
+	morphologyEx(thresh, dilate, MORPH_DILATE, dilate_kernel);
+
+	Mat close;
+	Mat const close_kernel = getStructuringElement(MORPH_RECT, Size(10,10));
+	morphologyEx(thresh, close, MORPH_CLOSE, close_kernel);
+
+	Mat erode;
+	Mat const erode_kernel = getStructuringElement(MORPH_RECT, Size(10,10));
+	morphologyEx(close, erode, MORPH_ERODE, erode_kernel);
+
+	Mat open;
+	Mat const open_kernel = getStructuringElement(MORPH_RECT, Size(7,7));
+	morphologyEx(erode, open, MORPH_OPEN, open_kernel);
+	
+	
+	Mat lap, abslap;
+	Laplacian( open, lap, CV_16S, 1,1,0, BORDER_DEFAULT);
+	convertScaleAbs(lap, abslap);
+	
+	//obtain contours of same intensity
+	vector<vector<Point> > contours;
+	vector<Vec4i> hierarchy;
+	findContours( abslap, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE );
+	Mat drawing = Mat::zeros( abslap.size(), CV_8UC3 );
+	for( size_t i = 0; i< contours.size(); i++ ){
+	        Scalar color = Scalar(0,255,25*i);
+        	drawContours( drawing, contours, (int)i, color, 2, LINE_8, hierarchy, 0 );
+    	}
+
+	namedWindow("Preview", WINDOW_NORMAL);
+	imshow("Preview", drawing);
+	int k = waitKey(0);
+}
+
+/* Increase contrast by using the linear transform y = a(x-b)
+ * *DOES NOT WORK*
+ * arguments:	Mat img the image to be modified
+ * 		Mat contrast the location to store the new image
+ * 		float a the scale factor
+ * 		float b the offset factor
+ */
+void linearContrast(Mat img, Mat contrast, float a, float b){
+	contrast=Mat::zeros( img.size(), img.type() );
+	for (int y = 0; y < img.rows; y++) {
+		for (int x = 0; x < img.cols; x++) {
+			contrast.at<uchar>(y,x) = a*(img.at<uchar>(y,x) - b);
+		}
+	}
+}
+
+/* Increase contrast by altering gamma value
+ * *DOES NOT WORK*
+ * arguments:	Mat img the image to imcrease contrast
+ * 		Mat gamma the location to store the modified image
+ * 		float g the gamma value
+ */
+void gammaContrast(Mat img, Mat gamma, float g){
+	Mat lookUpTable(1, 256, CV_8U);
+	uchar* p = lookUpTable.ptr();
+	for (int i = 0; i < 256; ++i) {
+		p[i] = saturate_cast<uchar>(pow(i/255, g)*255);
+	}
+	gamma = img.clone();
+	LUT(img, lookUpTable, gamma);
 }
