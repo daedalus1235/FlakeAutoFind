@@ -23,12 +23,15 @@ using namespace cv;
 
 void dftProc(const Mat,Mat&);
 void flatten(const Mat, Mat*, float*, float*, float, int);
+void gaussian(Mat&, float*, float);
+void butterworth(Mat&, float*, float, int);
+float findMedian(vector<int>);
+vector<vector<int>> ellipsePoints(float*, float*);
+
 void linearContrast(Mat, Mat, float, float);
 void gammaContrast(Mat, Mat, float);
 float transmittance(Mat, float*, float*, float, float*, int);
-float findMedian(vector<int>);
 void findCenter(Mat, float*);
-vector<vector<int>> ellipsePoints(float*, float*);
 
 int main(int argc, char** argv){ //Syntax is ./FlakeAutoFind {image/path} {n degree}
 	cout<<"OpenCV version: "<< CV_VERSION << endl;
@@ -73,7 +76,9 @@ int main(int argc, char** argv){ //Syntax is ./FlakeAutoFind {image/path} {n deg
 	float a[3][N];
 	//flatten all three channels individually
 	for( int i = 0; i<3; i++){
-		float c[] = {1380,800};//{dim[0]/2,dim[1]/2};
+		//{1380,800} for 100x
+		//{1400,900} for 20x
+		float c[] = {1400,900};
 		//findCenter(bgr[i], c);
 		flatten(bgr[i], flat[i], a[i], c, ar, N);
 	}
@@ -126,8 +131,19 @@ int main(int argc, char** argv){ //Syntax is ./FlakeAutoFind {image/path} {n deg
 	convertScaleAbs(lap, abslap);
 	*/
 
+	Mat butter;
+	//for 100x:
+	//butterworth(butter, dim, 1000, 5);
+	//for 20x:
+	butterworth(butter, dim, 1000, 7);
+	Mat cbutter;
+	normalize(butter, cbutter, 0, 255, NORM_MINMAX);
+
+	Mat vig;
+        multiply(butter, flat[2][0], vig, 1, CV_8UC1);
+	
 	Mat dft;
-	dftProc(flat[2][0],dft);
+	dftProc(vig,dft);
 
 	//display window to show image manipulation
 	float scale = 0.6;
@@ -140,7 +156,7 @@ int main(int argc, char** argv){ //Syntax is ./FlakeAutoFind {image/path} {n deg
 
 	bgr[2].copyTo(debug(Rect(0,0,dim[0],dim[1])));
 	cout<<"Displayed Red!"<<nl;
-	dft.copyTo(debug(Rect(dim[0],0,dim[0],dim[1])));
+	vig.copyTo(debug(Rect(dim[0],0,dim[0],dim[1])));
 	cout<<"Displayed FT!"<<nl;
 	flat[2][1].copyTo(debug(Rect(0,dim[1],dim[0],dim[1])));
 	cout<<"Displayed BG!"<<nl;
@@ -160,7 +176,7 @@ void dftProc(const Mat img, Mat& out){
 	//DFT
 	Mat padded;
 	int ny = getOptimalDFTSize( img.rows );
-	int nx = getOptimalDFTSize( img.cols);
+	int nx = getOptimalDFTSize( img.cols );
 	copyMakeBorder(img, padded, 0, ny-img.rows, 0, nx-img.cols, BORDER_CONSTANT, Scalar::all(0));
 
 	Mat planes[] = {Mat_<float>(padded),Mat::zeros(padded.size(), CV_32F)};
@@ -191,15 +207,39 @@ void dftProc(const Mat img, Mat& out){
 	q0.copyTo(tmp);
 	q3.copyTo(q0);
 	tmp.copyTo(q3);
-
 	
 	q1.copyTo(tmp);
 	q2.copyTo(q1);
 	tmp.copyTo(q2);
 
-	normalize(mag, mag, 0,1, NORM_MINMAX);
+	normalize(mag, mag, 0,255, NORM_MINMAX);
 	out = mag;
 }
+
+void gaussian(Mat& out, float* dim, float var){
+	float c[] = {dim[0]/2,dim[1]/2};
+	float ar = dim[0]/dim[1];
+	out = Mat::zeros(dim[1], dim[0], CV_32F);
+	for( int x = 0; x<dim[0]; x++ ){
+		for( int y = 0; y<dim[1]; y++){
+			float s2 = (x-c[0])*(x-c[0]) + ar*ar*(y-c[1])*(y-c[1]);
+			out.at<float>(y,x) = exp(-s2/var);
+		}
+	}
+}
+
+void butterworth(Mat& out, float* dim, float w0, int n){
+	float c[] = {dim[0]/2,dim[1]/2};
+	float ar = dim[0]/dim[1];
+	out = Mat::zeros(dim[1], dim[0], CV_32F);
+	for( int x = 0; x<dim[0]; x++ ){
+		for( int y = 0; y<dim[1]; y++){
+			float s2 = (x-c[0])*(x-c[0]) + ar*ar*(y-c[1])*(y-c[1]);
+			out.at<float>(y,x) = 1/(1+pow(s2/pow(w0,2),n));
+		}
+	}
+}
+
 /* Flatten the background using elliptical symmetry and polynomial approximation
  * arguments:	Mat img the image to be flattened
  * 		Mat* flat an array to be contain the flattened image and the calculated background
@@ -208,7 +248,7 @@ void dftProc(const Mat img, Mat& out){
  * 		float ar the assumed aspect ratio of the background
  * 		int n the number of samples to be taken. Should be less than 10.
  */
-void flatten(const Mat img, Mat* flat, float* a, float* c, float ar, int n){
+void flatten(/*const*/ Mat img, Mat* flat, float* a, float* c, float ar, int n){
 	cout<<"Samples to be taken: "<<n<<endl;
 	float dim[2]={img.cols, img.rows};
 	float samp2[n]; //sample locations squared
@@ -241,6 +281,7 @@ void flatten(const Mat img, Mat* flat, float* a, float* c, float ar, int n){
 			if ( x>=0 && y>=0 && x<dim[0] && y<dim[1] ){
 				int val = img.at<uchar>(ellpts[j][1],ellpts[j][0]);
 				ellvals.push_back(val);
+				img.at<uchar>(ellpts[j][1],ellpts[j][0]) = 255;
 			}
 		}
 		cout<<endl;
