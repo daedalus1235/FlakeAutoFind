@@ -30,7 +30,7 @@ void dftProc(const Mat img, Mat& out){
 	int nx = getOptimalDFTSize( img.cols );
 	copyMakeBorder(img, padded, 0, ny-img.rows, 0, nx-img.cols, BORDER_CONSTANT, Scalar::all(0));
 
-	Mat planes[] = {Mat_<double>(padded),Mat::zeros(padded.size(), CV_32F)};
+	Mat planes[] = {Mat_<float>(padded),Mat::zeros(padded.size(), CV_32F)};
 	Mat complexImg;
 	merge(planes, 2, complexImg);
 
@@ -128,9 +128,9 @@ void flatten(/*const*/ Mat img, Mat* flat, double* a, double* c, double ar, int 
 		vector<int> ellvals;
 		for( auto & point:ellpts){
 			if ( point.at(0)>=0 && point.at(1)>=0 && point.at(0)<dim[0] && point.at(1)<dim[1] ){
-				int val = img.at<uchar>(point.at(0), point.at(1));
+				int val = img.at<uchar>(point.at(1), point.at(0));
 				ellvals.push_back(val);
-				img.at<uchar>(point.at(0), point.at(1)) = 255;
+				//img.at<uchar>(point.at(1), point.at(0)) = 255;
 			}
 		}
 		cout<<endl;
@@ -140,11 +140,11 @@ void flatten(/*const*/ Mat img, Mat* flat, double* a, double* c, double ar, int 
 	cout<<"Samples Taken!"<<endl;
 	
 	//regression
-	double Sarr[n][n];
+	float Sarr[n][n];
 	for( int i = 0; i < n; i++){
 		for( int j=0; j < n; j++){
 			if( j == 0 )
-				Sarr[i][j]=1;
+				Sarr[i][j]=1.0;
 			else
 				Sarr[i][j]=(i+1)*Sarr[i][j-1];
 		}
@@ -152,11 +152,11 @@ void flatten(/*const*/ Mat img, Mat* flat, double* a, double* c, double ar, int 
 	Mat S(n,n, CV_32F, Sarr);
 	cout<<"S="<<nl<<S<<endl;
 	
-	double Carr[n][n];
+	float Carr[n][n];
 	for( int i = 0; i < n; i++ ){
 		for( int j = 0; j < n; j++){
 			if( j > i ){
-				Carr[i][j]=0;
+				Carr[i][j]=0.0;
 			}
 			else if ( j == 0 ){
 				if( i == 0 )
@@ -387,7 +387,9 @@ void findCenter(Mat img, double* c){
 
 	namedWindow("Preview", WINDOW_NORMAL);
 	imshow("Preview", drawing);
-	waitKey(0);
+	int k = waitKey(0);
+	if( k == 's' ){
+	}
 }
 
 /* Increase contrast by using the linear transform y = a(x-b)

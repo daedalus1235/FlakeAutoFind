@@ -25,6 +25,10 @@ using namespace cv;
 
 int main(int argc, char** argv){ //Syntax is ./FlakeAutoFind {image/path} {n degree}
 	cout<<"OpenCV version: "<< CV_VERSION << endl;
+	if (argc < 2){
+		cout<< "No image specified" <<endl;
+		return -1;
+	}
 	string image_path = argv[1]; 
 
 	//open image
@@ -41,9 +45,9 @@ int main(int argc, char** argv){ //Syntax is ./FlakeAutoFind {image/path} {n deg
 	}
 	cout<<"Image Loaded!"<<endl;
 	
-	//level of approximation. Must be applied to run? but default=3
+	//level of approximation. 
 	int N = 3;
-	if (argc > 1){
+	if (argc > 2){
 		N = std::stoi(argv[2]);
 	}
 	
@@ -156,8 +160,10 @@ int main(int argc, char** argv){ //Syntax is ./FlakeAutoFind {image/path} {n deg
 	imshow("Debug View", debug);
 	cout<<"Displayed Debug!"<<endl;
 
+	int k = waitKey(0);
+	if (k == 's'){
 	imwrite("output.png", debug);
-	waitKey(0);
+	}
 	
 	return 0;
 }
